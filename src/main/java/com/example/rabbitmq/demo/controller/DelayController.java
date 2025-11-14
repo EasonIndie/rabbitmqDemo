@@ -1,9 +1,7 @@
 package com.example.rabbitmq.demo.controller;
 
 import com.example.rabbitmq.demo.config.RabbitMQConfig;
-import com.example.rabbitmq.demo.producer.DelayProducer;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageProperties;
+
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
