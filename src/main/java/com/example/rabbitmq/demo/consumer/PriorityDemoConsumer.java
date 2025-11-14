@@ -33,8 +33,8 @@ public class PriorityDemoConsumer {
      */
     @RabbitListener(queues = "${rabbitmq.queue.order.priority}")
     public void processPriorityOrderWithControl(@Payload Order order,
-                                             Channel channel,
-                                             @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,
+                                             //Channel channel,
+                                             //@Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,
                                              @Header(name = "priority", defaultValue = "5") Integer priority) throws IOException {
 
         try {
@@ -76,13 +76,13 @@ public class PriorityDemoConsumer {
             log.info("处理完成 [耗时: {}ms] 订单Id: {}, >>>>优先级: {}", processingTime, order.getOrderId(), priority);
 
             // 手动确认消息
-            channel.basicAck(deliveryTag, false);
+            //channel.basicAck(deliveryTag, false);
 
         } catch (Exception e) {
             log.error("消息处理失败: orderId={}, priority={}", order.getOrderId(), priority, e);
 
             // 拒绝消息并发送到死信队列
-            channel.basicNack(deliveryTag, false, false);
+            //channel.basicNack(deliveryTag, false, false);
         }
     }
 

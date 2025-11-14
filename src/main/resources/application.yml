@@ -21,7 +21,6 @@ spring:
       mandatory: true                 # 强制确认消息路由
     listener:
       simple:
-        acknowledge-mode: auto         # 自动确认（重试模式下推荐）
         retry:
           enabled: true                # 开启重试
           initial-interval: 2000       # 初始重试间隔 2秒

@@ -3,9 +3,11 @@ package com.example.rabbitmq.demo.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
@@ -80,6 +82,17 @@ public class RabbitMQConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(messageConverter());
+        //重试配置
+        factory.setAdviceChain(RetryInterceptorBuilder.stateless()
+                .maxAttempts(3)                   // 重试 3 次
+                .backOffOptions(
+                        2000,  // 第一次重试等待 2 秒
+                        2.0,   // 每次 * 2
+                        10000  // 最大等待 10 秒
+                )
+                .recoverer(new RejectAndDontRequeueRecoverer()) // 重试到上限后: 进入 DLQ
+                .build()
+        );
 
         // 设置并发消费者数量
         factory.setConcurrentConsumers(3);
@@ -89,12 +102,13 @@ public class RabbitMQConfig {
         factory.setPrefetchCount(1);
 
         // 开启手动确认
-        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
+        //factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
 
         return factory;
     }
 
-    // ==================== 优先级队列 ====================
+
+    // 优先级队列
 
     @Bean
     public Queue orderPriorityQueue() {
@@ -104,14 +118,14 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(orderPriorityQueue).withArguments(args).build();
     }
 
-    // ==================== 交换机配置 ====================
+    //交换机配置
 
     @Bean
     public DirectExchange orderExchange() {
         return ExchangeBuilder.directExchange(orderExchange).durable(true).build();
     }
 
-    // ==================== 队列绑定 ====================
+    // 队列绑定
 
     // 优先级队列绑定
     @Bean
@@ -122,6 +136,7 @@ public class RabbitMQConfig {
     }
 
 
+    //=======================延迟配置==========================
 
     public static final String DELAYED_EXCHANGE = "delayed.exchange";
     public static final String DELAYED_QUEUE = "delayed.queue";
@@ -152,5 +167,63 @@ public class RabbitMQConfig {
     @Bean
     public Binding delayedBinding(Queue delayedQueue, CustomExchange delayedExchange) {
         return BindingBuilder.bind(delayedQueue).to(delayedExchange).with(ROUTING_KEY).noargs();
+    }
+
+    //========================重试配置==========================
+
+    public static final String NORMAL_QUEUE = "retry.normal.queue";
+    public static final String NORMAL_EXCHANGE = "retry.normal.exchange";
+
+    public static final String DEAD_QUEUE = "retry.dead.queue";
+    public static final String DEAD_EXCHANGE = "retry.dead.exchange";
+
+    /**
+     * 正常交换机
+     */
+    @Bean
+    public DirectExchange normalExchange() {
+        return new DirectExchange(NORMAL_EXCHANGE);
+    }
+
+    /**
+     * 死信交换机
+     */
+    @Bean
+    public DirectExchange deadExchange() {
+        return new DirectExchange(DEAD_EXCHANGE);
+    }
+
+    /**
+     * 正常队列，绑定死信交换机
+     */
+    @Bean
+    public Queue normalQueue() {
+        Map<String, Object> args = new HashMap<>();
+        // 消费失败达到重试次数后，消息进入死信交换机
+        args.put("x-dead-letter-exchange", DEAD_EXCHANGE);
+        args.put("x-dead-letter-routing-key", "dead.key");
+        return QueueBuilder.durable(NORMAL_QUEUE).withArguments(args).build();
+    }
+
+    @Bean
+    public Binding normalBinding() {
+        return BindingBuilder.bind(normalQueue())
+                .to(normalExchange())
+                .with("normal.key");
+    }
+
+    /**
+     * 死信队列
+     */
+    @Bean
+    public Queue deadQueue() {
+        return QueueBuilder.durable(DEAD_QUEUE).build();
+    }
+
+    @Bean
+    public Binding deadBinding() {
+        return BindingBuilder.bind(deadQueue())
+                .to(deadExchange())
+                .with("dead.key");
     }
 }
