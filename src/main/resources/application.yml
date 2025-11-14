@@ -19,34 +19,7 @@ spring:
     publisher-returns: true            # 开启返回确认
     template:
       mandatory: true                 # 强制确认消息路由
-    listener:
-      simple:
-        retry:
-          enabled: true                # 开启重试
-          initial-interval: 2000       # 初始重试间隔 2秒
-          max-attempts: 5              # 最大重试次数
-          max-interval: 10000          # 最大重试间隔 10秒
-          multiplier: 2                # 重试间隔倍数
 
-  # 数据库配置（H2内存数据库）
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
 
 # 自定义RabbitMQ队列和交换机配置
 rabbitmq:
@@ -55,19 +28,7 @@ rabbitmq:
   exchange:
     order: order.tech_share.exchange
 
-# 监控配置
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus,rabbitmq
-  endpoint:
-    health:
-      show-details: always
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+
 
 # 日志配置
 logging:
