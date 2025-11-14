@@ -17,46 +17,16 @@ import java.util.Map;
 
 /**
  * RabbitMQ配置类
- * 演示各种队列和交换机配置
+ * 只保留实际使用的配置
  */
 @Configuration
 public class RabbitMQConfig {
 
-    @Value("${rabbitmq.queue.order}")
-    private String orderQueue;
-
-    @Value("${rabbitmq.queue.order.retry}")
-    private String orderRetryQueue;
-
-    @Value("${rabbitmq.queue.order.annotation}")
-    private String orderAnnotationQueue;
-
     @Value("${rabbitmq.queue.order.priority}")
     private String orderPriorityQueue;
 
-    @Value("${rabbitmq.queue.order.delay}")
-    private String orderDelayQueue;
-
-    @Value("${rabbitmq.queue.dead-letter}")
-    private String deadLetterQueue;
-
-    @Value("${rabbitmq.queue.retry}")
-    private String retryQueue;
-
-    @Value("${rabbitmq.queue.retry.failure}")
-    private String retryFailureQueue;
-
     @Value("${rabbitmq.exchange.order}")
     private String orderExchange;
-
-    @Value("${rabbitmq.exchange.delay}")
-    private String delayExchange;
-
-    @Value("${rabbitmq.exchange.dead-letter}")
-    private String deadLetterExchange;
-
-    @Value("${rabbitmq.exchange.retry}")
-    private String retryExchange;
 
     /**
      * 消息转换器
@@ -124,28 +94,6 @@ public class RabbitMQConfig {
         return factory;
     }
 
-    // ==================== 普通订单队列 ====================
-
-    @Bean
-    public Queue orderQueue() {
-        return QueueBuilder.durable(orderQueue).build();
-    }
-
-    @Bean
-    public Queue orderRetryQueue() {
-        return QueueBuilder.durable(orderRetryQueue).build();
-    }
-
-    @Bean
-    public Queue orderAnnotationQueue() {
-        return QueueBuilder.durable(orderAnnotationQueue).build();
-    }
-
-    @Bean
-    public Queue retryFailureQueue() {
-        return QueueBuilder.durable(retryFailureQueue).build();
-    }
-
     // ==================== 优先级队列 ====================
 
     @Bean
@@ -156,41 +104,6 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(orderPriorityQueue).withArguments(args).build();
     }
 
-    // ==================== 延迟队列 ====================
-
-    @Bean
-    public Queue orderDelayQueue() {
-        Map<String, Object> args = new HashMap<>();
-        // 设置消息TTL为15分钟 (900000毫秒)，与已存在的队列保持一致
-        args.put("x-message-ttl", 900000);
-        // 设置死信交换机
-        args.put("x-dead-letter-exchange", orderExchange);
-        // 设置死信路由键
-        args.put("x-dead-letter-routing-key", "order.process");
-        return QueueBuilder.durable(orderDelayQueue).withArguments(args).build();
-    }
-
-    // ==================== 死信队列 ====================
-
-    @Bean
-    public Queue deadLetterQueue() {
-        return QueueBuilder.durable(deadLetterQueue).build();
-    }
-
-    // ==================== 重试队列 ====================
-
-    @Bean
-    public Queue retryQueue() {
-        Map<String, Object> args = new HashMap<>();
-        // 设置TTL为30秒
-        args.put("x-message-ttl", 30000);
-        // 设置死信交换机为原始交换机
-        args.put("x-dead-letter-exchange", orderExchange);
-        // 设置死信路由键为原始队列
-        args.put("x-dead-letter-routing-key", "order.retry");
-        return QueueBuilder.durable(retryQueue).withArguments(args).build();
-    }
-
     // ==================== 交换机配置 ====================
 
     @Bean
@@ -198,46 +111,7 @@ public class RabbitMQConfig {
         return ExchangeBuilder.directExchange(orderExchange).durable(true).build();
     }
 
-    @Bean
-    public DirectExchange delayExchange() {
-        return ExchangeBuilder.directExchange(delayExchange).durable(true).build();
-    }
-
-    @Bean
-    public FanoutExchange deadLetterExchange() {
-        return ExchangeBuilder.fanoutExchange(deadLetterExchange).durable(true).build();
-    }
-
-    @Bean("retryExchangeForBinding")
-    public DirectExchange retryExchange() {
-        return ExchangeBuilder.directExchange(retryExchange).durable(true).build();
-    }
-
     // ==================== 队列绑定 ====================
-
-    // 普通订单队列绑定
-    @Bean
-    public Binding orderQueueBinding() {
-        return BindingBuilder.bind(orderQueue())
-                .to(orderExchange())
-                .with("order.process");
-    }
-
-    // 重试订单队列绑定
-    @Bean
-    public Binding orderRetryQueueBinding() {
-        return BindingBuilder.bind(orderRetryQueue())
-                .to(orderExchange())
-                .with("order.retry.process");
-    }
-
-    // 注解重试订单队列绑定
-    @Bean
-    public Binding orderAnnotationQueueBinding() {
-        return BindingBuilder.bind(orderAnnotationQueue())
-                .to(orderExchange())
-                .with("order.annotation.process");
-    }
 
     // 优先级队列绑定
     @Bean
@@ -247,34 +121,36 @@ public class RabbitMQConfig {
                 .with("order.priority");
     }
 
-    // 重试队列绑定
+
+
+    public static final String DELAYED_EXCHANGE = "delayed.exchange";
+    public static final String DELAYED_QUEUE = "delayed.queue";
+    public static final String ROUTING_KEY = "delayed.key";
+
+    /**
+     * 声明一个延迟交换机（x-delayed-message）
+     */
     @Bean
-    public Binding retryQueueBinding() {
-        return BindingBuilder.bind(retryQueue())
-                .to(orderExchange())
-                .with("order.retry");
+    public CustomExchange delayedExchange() {
+        Map<String, Object> args = new HashMap<>();
+        // x-delayed-type 表示内部实际使用的路由类型，比如 direct、topic、fanout
+        args.put("x-delayed-type", "direct");
+        return new CustomExchange(DELAYED_EXCHANGE, "x-delayed-message", true, false, args);
     }
 
-    // 延迟队列绑定
+    /**
+     * 定义延迟队列
+     */
     @Bean
-    public Binding delayQueueBinding() {
-        return BindingBuilder.bind(orderDelayQueue())
-                .to(delayExchange())
-                .with("order.delay");
+    public Queue delayedQueue() {
+        return QueueBuilder.durable(DELAYED_QUEUE).build();
     }
 
-    // 重试失败队列绑定
+    /**
+     * 绑定队列与延迟交换机
+     */
     @Bean
-    public Binding retryFailureQueueBinding() {
-        return BindingBuilder.bind(retryFailureQueue())
-                .to(retryExchange())
-                .with("retry.failure.key");
-    }
-
-    // 死信队列绑定
-    @Bean
-    public Binding deadLetterQueueBinding() {
-        return BindingBuilder.bind(deadLetterQueue())
-                .to(deadLetterExchange());
+    public Binding delayedBinding(Queue delayedQueue, CustomExchange delayedExchange) {
+        return BindingBuilder.bind(delayedQueue).to(delayedExchange).with(ROUTING_KEY).noargs();
     }
 }

@@ -17,8 +17,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * 5. 消息重试
  * 6. 事务消息
  * 7. 消息路由
- * 8. 集群配置
- * 9. 监控指标
  */
 @SpringBootApplication
 @EnableAsync

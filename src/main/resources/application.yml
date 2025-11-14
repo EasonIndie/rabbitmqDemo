@@ -52,19 +52,9 @@ spring:
 # 自定义RabbitMQ队列和交换机配置
 rabbitmq:
   queue:
-    order: order.tech_share.queue
-    order.retry: order.retry.tech_share.queue
-    order.annotation: order.annotation.tech_share.queue
     order.priority: order.priority.tech_share.queue
-    order.delay: order.delay.tech_share.queue
-    dead-letter: dead-letter.tech_share.queue
-    retry: retry.tech_share.queue
-    retry.failure: retry.failure.tech_share.queue  # 重试失败队列
   exchange:
     order: order.tech_share.exchange
-    retry: retry.tech_share.exchange              # 重试交换机
-    delay: delay.tech_share.exchange
-    dead-letter: dead-letter.tech_share.exchange
 
 # 监控配置
 management:
